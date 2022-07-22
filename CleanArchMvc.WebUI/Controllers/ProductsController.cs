@@ -1,11 +1,8 @@
 ﻿using CleanArchMvc.Application.DTOs;
 using CleanArchMvc.Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using System.IO;
-using System.Threading.Tasks;
 
 namespace CleanArchMvc.WebUI.Controllers
 {
@@ -16,7 +13,7 @@ namespace CleanArchMvc.WebUI.Controllers
         private readonly IWebHostEnvironment _environment;
 
         public ProductsController(IProductService productAppService,
-            ICategoryService categoryService, 
+            ICategoryService categoryService,
             IWebHostEnvironment environment)
         {
             _productService = productAppService;
