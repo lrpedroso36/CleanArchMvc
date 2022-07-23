@@ -7,98 +7,98 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-namespace CleanArchMvc.API.Controllers
+namespace CleanArchMvc.API.Controllers;
+
+[Route("api/[controller]")]
+[ApiController]
+[Authorize]
+public class TokenController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    [Authorize]
-    public class TokenController : ControllerBase
+    private readonly IAuthenticate _authenticate;
+    private readonly IConfiguration _configuration;
+
+    public TokenController(IAuthenticate authenticate,
+                           IConfiguration configuration)
     {
-        private readonly IAuthenticate _authenticate;
-        private readonly IConfiguration _configuration;
+        _authenticate = authenticate;
+        _configuration = configuration;
+    }
 
-        public TokenController(IAuthenticate authenticate,
-                               IConfiguration configuration)
+    [HttpPost("LoginUser")]
+    [AllowAnonymous]
+    public async Task<ActionResult<UserToken>> Login([FromBody] LoginModel userInfo)
+    {
+        var result = await _authenticate.Authenticate(userInfo.Email, userInfo.Password);
+
+        if (result)
         {
-            _authenticate = authenticate;
-            _configuration = configuration;
+            return GenerateToken(userInfo);
+            //return Ok($"User {userInfo.Email} login successfully");
         }
-
-        [HttpPost("LoginUser")]
-        [AllowAnonymous]
-        public async Task<ActionResult<UserToken>> Login([FromBody] LoginModel userInfo)
+        else
         {
-            var result = await _authenticate.Authenticate(userInfo.Email, userInfo.Password);
-
-            if (result)
-            {
-                return GenerateToken(userInfo);
-                //return Ok($"User {userInfo.Email} login successfully");
-            }
-            else
-            {
-                ModelState.AddModelError(string.Empty, "Invalid Login attempt.");
-                return BadRequest(ModelState);
-            }
+            ModelState.AddModelError(string.Empty, "Invalid Login attempt.");
+            return BadRequest(ModelState);
         }
+    }
 
-        [HttpPost("CreateUser")]
-        //[ApiExplorerSettings(IgnoreApi = true)]
-        public async Task<ActionResult> CreateUser([FromBody] LoginModel userInfo)
+    [HttpPost("CreateUser")]
+    //[ApiExplorerSettings(IgnoreApi = true)]
+    public async Task<ActionResult> CreateUser([FromBody] LoginModel userInfo)
+    {
+        var result = await _authenticate.RegisterUser(userInfo.Email, userInfo.Password);
+
+        if (result)
         {
-            var result = await _authenticate.RegisterUser(userInfo.Email, userInfo.Password);
-
-            if (result)
-            {
-                //return GenerateToken(userInfo);
-                return Ok($"User {userInfo.Email} was created successfully");
-            }
-            else
-            {
-                ModelState.AddModelError(string.Empty, "Invalid Login attempt.");
-                return BadRequest(ModelState);
-            }
+            //return GenerateToken(userInfo);
+            return Ok($"User {userInfo.Email} was created successfully");
         }
-
-        private UserToken GenerateToken(LoginModel userInfo)
+        else
         {
-            //declarações do usuário
-            var claims = new[]
-            {
+            ModelState.AddModelError(string.Empty, "Invalid Login attempt.");
+            return BadRequest(ModelState);
+        }
+    }
+
+    private UserToken GenerateToken(LoginModel userInfo)
+    {
+        //declarações do usuário
+        var claims = new[]
+        {
                 new Claim("email", userInfo.Email),
                 new Claim("meuvalor", "oque voce quiser"),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
-            //gerar chave privada para assinar o token
-            var privateKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]));
+        //gerar chave privada para assinar o token
+        var privateKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(_configuration["Jwt:SecretKey"]));
 
-            //gerar a assinatura digital
-            var credentials = new SigningCredentials(privateKey, SecurityAlgorithms.HmacSha256);
+        //gerar a assinatura digital
+        var credentials = new SigningCredentials(privateKey, SecurityAlgorithms.HmacSha256);
 
-            //definir o tempo de expiração
-            var expiration = DateTime.UtcNow.AddMinutes(10);
+        //definir o tempo de expiração
+        var expiration = DateTime.UtcNow.AddMinutes(10);
 
-            //gerar o token
-            JwtSecurityToken token = new JwtSecurityToken(
-                //emissor
-                issuer: _configuration["Jwt:Issuer"],
-                //audiencia
-                audience: _configuration["Jwt:Audience"],
-                //claims
-                claims: claims,
-                //data de expiracao
-                expires: expiration,
-                //assinatura digital
-                signingCredentials: credentials
-                );
+        //gerar o token
+        JwtSecurityToken token = new JwtSecurityToken(
+            //emissor
+            issuer: _configuration["Jwt:Issuer"],
+            //audiencia
+            audience: _configuration["Jwt:Audience"],
+            //claims
+            claims: claims,
+            //data de expiracao
+            expires: expiration,
+            //assinatura digital
+            signingCredentials: credentials
+            );
 
-            return new UserToken()
-            {
-                Token = new JwtSecurityTokenHandler().WriteToken(token),
-                Expiration = expiration
-            };
-        }
+        return new UserToken()
+        {
+            Token = new JwtSecurityTokenHandler().WriteToken(token),
+            Expiration = expiration
+        };
     }
 }
+
